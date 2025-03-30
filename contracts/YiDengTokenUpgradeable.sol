@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-// 导入 OpenZeppelin 的 ERC20 标准合约
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-// 导入 OpenZeppelin 的所有权控制合约
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-// YiDengToken 合约，继承自 ERC20 和 Ownable
-contract YiDengToken is ERC20, Ownable {
+contract YiDengTokenUpgradeable is
+    Initializable,
+    ERC20Upgradeable,
+    OwnableUpgradeable
+{
     // 定义 ETH 兑换 YD 的比率：1 ETH = 1000 YD
     uint256 public constant TOKENS_PER_ETH = 1000;
     // 定义代币最大供应量：125万 YD（包含 18 位小数）
@@ -26,7 +28,7 @@ contract YiDengToken is ERC20, Ownable {
     function decimals() public view virtual override returns (uint8) {
         return 0;
     }
-    // 事件定义
+
     event TokensPurchased(
         address indexed buyer,
         uint256 ethAmount,
@@ -43,12 +45,18 @@ contract YiDengToken is ERC20, Ownable {
         address communityWallet
     );
 
-    // 构造函数：初始化代币名称为 "YiDeng Token"，符号为 "YD"
-    constructor() ERC20("YiDeng Token", "YD") Ownable(msg.sender) {
-        // 计算各个分配额度
-        teamAllocation = (MAX_SUPPLY * 20) / 100; // 20% 分配给团队
-        marketingAllocation = (MAX_SUPPLY * 10) / 100; // 10% 分配给市场营销
-        communityAllocation = (MAX_SUPPLY * 10) / 100; // 10% 分配给社区
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize() public initializer {
+        __ERC20_init("YiDeng Token", "YD");
+        __Ownable_init(msg.sender);
+
+        teamAllocation = (MAX_SUPPLY * 20) / 100;
+        marketingAllocation = (MAX_SUPPLY * 10) / 100;
+        communityAllocation = (MAX_SUPPLY * 10) / 100;
     }
 
     // 初始代币分配函数，只能由合约所有者调用
@@ -76,7 +84,7 @@ contract YiDengToken is ERC20, Ownable {
         require(msg.value > 0, "Must send ETH");
 
         // 将 wei 转换为 ETH 再计算代币数量
-        uint256 tokenAmount = ((msg.value / 1 ether) * TOKENS_PER_ETH);
+        uint256 tokenAmount = (msg.value * TOKENS_PER_ETH) / 1 ether;
         require(
             totalSupply() + tokenAmount <= MAX_SUPPLY,
             "Would exceed max supply"
